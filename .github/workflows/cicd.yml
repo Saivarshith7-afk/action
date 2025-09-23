@@ -1,0 +1,93 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 085279
+          MYSQL_DATABASE: online
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -p085279"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up JDK for Spring Boot
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # Build Spring Boot backend
+      - name: Build Backend
+        working-directory: ./spring/auction
+        run: mvn -B package --file pom.xml -DskipTests
+
+      # Set up Node.js for React
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Build React frontend
+      - name: Build Frontend
+        working-directory: ./react/online-bidding-frontend
+        env:
+          VITE_API_URL: http://localhost:8090
+        run: |
+          npm ci
+          npm run build
+
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Build and push Backend Docker image
+      - name: Build and push Backend Docker image
+        working-directory: ./spring/auction
+        run: |
+          docker build -t varshith4/auction-backend:latest .
+          docker push varshith4/auction-backend:latest
+
+      # Build and push Frontend Docker image
+      - name: Build and push Frontend Docker image
+        working-directory: ./react/online-bidding-frontend
+        run: |
+          docker build -t varshith4/auction-frontend:latest .
+          docker push varshith4/auction-frontend:latest
+
+      # Run backend tests (optional, enable if you have tests)
+      - name: Run Backend Tests
+        working-directory: ./spring/auction
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/online?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: 085279
+        run: mvn test
