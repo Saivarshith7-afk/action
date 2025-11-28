@@ -1,14 +1,32 @@
 import axios from 'axios';
 
-// Use Vite env at build-time, fallback to localhost for local/dev
-const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8080';
+// Use relative URL for Kubernetes deployment (nginx will proxy to backend)
+// For local dev: use http://localhost:8080
+// In Kubernetes, use empty string so requests go to same origin, nginx proxies to backend
+const API_BASE_URL = import.meta.env?.VITE_API_URL || '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 second timeout
 });
+
+// Add response interceptor for debugging
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API Error:', {
+      message: error.message,
+      url: error.config?.url,
+      baseURL: error.config?.baseURL,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    return Promise.reject(error);
+  }
+);
 
 // Add token to requests if available
 api.interceptors.request.use((config) => {
@@ -23,12 +41,21 @@ api.interceptors.request.use((config) => {
 export const signup = (userData) => api.post('/users/signup', userData);
 export const signin = (userData) => api.post('/users/signin', userData);
 export const getFullname = (token) => api.post('/users/getfullname', { csrid: token });
+export const sendOTP = (email) => api.post('/users/send-otp', { email });
+export const forgotPassword = (email, otp, newPassword) => api.post('/users/forgot-password', { email, otp, newPassword });
 
 // Product APIs
 export const getAllProducts = () => api.get('/products/all');
 export const getProductsBySeller = (email) => api.get(`/products/seller/${email}`);
-export const getProductById = (id) => api.get(`/products/get/${id}`);
-export const addProduct = (productData) => api.post('/products/add', productData);
+export const getProductById = (id) => api.get(`/products/${id}`);
+export const addProduct = (formData) => {
+  // For multipart/form-data, we need to set the content type header correctly
+  return api.post('/products/add', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
 export const updateProduct = (productData) => api.put('/products/update', productData);
 export const deleteProduct = (id) => api.delete(`/products/delete/${id}`);
 
@@ -41,6 +68,7 @@ export const getHighestBid = (productId) => api.get(`/bid/highest?productId=${pr
 export const placeOrder = (orderData) => api.post('/orders/place', orderData);
 export const getOrdersByUser = (email) => api.post('/orders/getbyuser', { email });
 export const getAllOrders = () => api.get('/orders/all');
+export const cancelOrder = (orderId) => api.post('/orders/cancel', { orderId });
 
 // Wallet APIs
 export const addMoney = (email, amount) => api.post(`/wallet/add?email=${email}&amount=${amount}`);
@@ -70,5 +98,15 @@ export const createDelivery = (deliveryData) => api.post('/delivery/create', del
 export const getAllDeliveries = () => api.get('/delivery/all');
 export const getDeliveryById = (id) => api.get(`/delivery/${id}`);
 export const updateDeliveryStatus = (id, status) => api.post(`/delivery/updatestatus?id=${id}&status=${status}`);
+
+// Notification APIs
+export const getUserNotifications = (email) => api.get(`/notifications/user?email=${email}`);
+export const getUnreadNotifications = (email) => api.get(`/notifications/unread?email=${email}`);
+export const getUnreadCount = (email) => api.get(`/notifications/unread-count?email=${email}`);
+export const markNotificationRead = (id) => api.post(`/notifications/mark-read?id=${id}`);
+export const markAllNotificationsRead = (email) => api.post('/notifications/mark-all-read', { email });
+
+// Chat APIs
+export const sendChatMessage = (message, email) => api.post('/chat/message', { message, email });
 
 export default api; 
