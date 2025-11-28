@@ -8,13 +8,16 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import LogoutIcon from '@mui/icons-material/Logout';
 import GavelIcon from '@mui/icons-material/Gavel';
-import { getBalance, getUserTransactions } from '../api';
+import { getBalance, getUserTransactions, getFullname } from '../api';
+import NotificationBell from './NotificationBell';
+import logo from '../assets/logo.jpg';
 import '../CSS/navbar.css';
 
 const UserNavbar = () => {
   const navigate = useNavigate();
   const [walletBalance, setWalletBalance] = useState(0);
   const [recentTransaction, setRecentTransaction] = useState(null);
+  const [userName, setUserName] = useState('User Panel');
   const email = localStorage.getItem('email');
 
   useEffect(() => {
@@ -33,7 +36,29 @@ const UserNavbar = () => {
         // Optionally handle error
       }
     }
+    
+    async function fetchUserName() {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await getFullname(token);
+          const name = response.data;
+          if (name && !name.includes('::') && !name.includes('401')) {
+            setUserName(name);
+          } else if (name && name.includes('::')) {
+            const actualName = name.split('::')[1];
+            if (actualName && actualName !== 'Token Expired!') {
+              setUserName(actualName);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user name:', error);
+        }
+      }
+    }
+    
     fetchWalletAndTransaction();
+    fetchUserName();
   }, [email]);
 
   const handleLogout = () => {
@@ -46,9 +71,12 @@ const UserNavbar = () => {
   return (
     <AppBar position="static" className="navbar">
       <Toolbar>
-        <Typography variant="h6" component={Link} to="/user-dashboard" className="logo">
-          User Panel
-        </Typography>
+        <Box component={Link} to="/user-dashboard" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit', mr: 2 }}>
+          <img src={logo} alt="Logo" style={{ height: '40px', marginRight: '10px' }} />
+          <Typography variant="h6" className="logo">
+            {userName}
+          </Typography>
+        </Box>
         <Box className="nav-links">
           <Tooltip title="All Products">
             <IconButton color="inherit" component={Link} to="/user/products">
@@ -75,6 +103,7 @@ const UserNavbar = () => {
               <ReceiptLongIcon />
             </IconButton>
           </Tooltip>
+          <NotificationBell />
           <Tooltip title="Logout">
             <IconButton color="inherit" onClick={handleLogout}>
               <LogoutIcon />

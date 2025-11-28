@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Container, Typography, Button, Box, Grid, Card, CardContent, CardMedia, Chip, Paper } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { getAllProducts } from '../api';
 import '../CSS/home.css';
@@ -9,10 +9,25 @@ import CategoryIcon from '@mui/icons-material/Category';
 import PaymentIcon from '@mui/icons-material/Payment';
 import Footer from '../components/Footer';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env?.VITE_API_URL || '';
 
 const Home = () => {
   const [products, setProducts] = useState([]);
+  const navigate = useNavigate();
+
+  const handleProductClick = (product) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // User not logged in, trigger signup modal
+      const signupButton = document.querySelector('.signup-btn');
+      if (signupButton) {
+        signupButton.click();
+      }
+    } else {
+      // User is logged in, navigate to bidding page
+      navigate(`/bidding/${product.id}`);
+    }
+  };
 
   useEffect(() => {
     fetchProducts();
@@ -177,10 +192,12 @@ const Home = () => {
             {products.slice(0, 6).map((product) => (
               <Grid item xs={12} sm={6} md={4} key={product.id}>
                 <Card 
+                  onClick={() => handleProductClick(product)}
                   sx={{ 
                     height: '100%', 
                     display: 'flex', 
                     flexDirection: 'column',
+                    cursor: 'pointer',
                     transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
                     '&:hover': {
                       transform: 'translateY(-8px)',

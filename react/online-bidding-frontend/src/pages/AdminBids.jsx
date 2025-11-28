@@ -5,6 +5,7 @@ import {
   Grid,
   Card,
   CardContent,
+  CardMedia,
   Box,
   Alert,
   Divider,
@@ -12,7 +13,7 @@ import {
 import AdminNavbar from '../components/AdminNavbar';
 import { getAllProducts, getBidsForProduct, getHighestBid } from '../api';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env?.VITE_API_URL || '';
 
 const AdminBids = () => {
   const [products, setProducts] = useState([]);
@@ -57,24 +58,24 @@ const AdminBids = () => {
         <Grid container spacing={4}>
           {products.map((product) => (
             <Grid item xs={12} md={6} key={product.id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <img
-                      src={product.photoUrl ? `${API_BASE}${product.photoUrl}` : 'https://via.placeholder.com/100'}
-                      alt={product.name}
-                      style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8, marginRight: 16 }}
-                    />
-                    <Box>
-                      <Typography variant="h6">{product.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Category: {product.category}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Price: ${product.price.toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </Box>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardMedia
+                  component="img"
+                  height="250"
+                  image={product.photoUrl ? `${API_BASE}${product.photoUrl}` : 'https://via.placeholder.com/300x250'}
+                  alt={product.name}
+                  sx={{ objectFit: 'cover' }}
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    {product.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Category: {product.category}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Price: ${product.price.toFixed(2)}
+                  </Typography>
                   <Divider sx={{ mb: 2 }} />
                   <Typography variant="subtitle1" sx={{ mb: 1 }}>
                     Highest Bid:

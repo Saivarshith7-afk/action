@@ -20,12 +20,12 @@ import {
 } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminNavbar from '../components/AdminNavbar';
-import { getAllProducts, getAllCategories, updateProduct, deleteProduct, getBidsForProduct } from '../api';
+import { getAllProducts, getAllCategories, updateProduct, deleteProduct, getBidsForProduct, addProduct } from '../api';
 import GavelIcon from '@mui/icons-material/Gavel';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env?.VITE_API_URL || '';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -195,26 +195,83 @@ const Products = () => {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('product', new Blob([JSON.stringify(newProduct)], { type: 'application/json' }));
-    if (photo) formData.append('photo', photo);
+    if (!photo) {
+      setPhotoError('Please select a product image.');
+      return;
+    }
 
     try {
-      const res = await fetch(`${API_BASE}/products/add`, {
-        method: 'POST',
-        body: formData,
+      // Create FormData to handle file upload
+      const productFormData = new FormData();
+      const productJson = JSON.stringify({
+        name: newProduct.name,
+        description: newProduct.description || '',
+        price: parseFloat(newProduct.price),
+        category: newProduct.category,
+        sellerEmail: newProduct.sellerEmail,
+        quantity: newProduct.quantity ? parseInt(newProduct.quantity) : 1,
+        expiryDate: newProduct.expiryDate || null,
       });
-      const msg = await res.text();
-      if (res.ok) {
+      productFormData.append('product', new Blob([productJson], { type: 'application/json' }));
+      productFormData.append('photo', photo);
+
+      const response = await addProduct(productFormData);
+      console.log('Product addition response:', response);
+      const responseData = response.data;
+      
+      // Check if it's a success
+      if (typeof responseData === 'string') {
+        if (responseData.toLowerCase().includes('successfully') || 
+            responseData.toLowerCase().includes('added') ||
+            response.status === 200) {
+          setSuccess('Product added successfully!');
+          fetchProducts();
+          setAddOpen(false);
+          setNewProduct({
+            name: '',
+            description: '',
+            price: '',
+            quantity: '',
+            category: '',
+            expiryDate: '',
+            sellerEmail: localStorage.getItem('email') || '',
+          });
+          setPhoto(null);
+          setPhotoError('');
+        } else {
+          setPhotoError(responseData || 'Failed to add product');
+        }
+      } else if (response.status === 200) {
         setSuccess('Product added successfully!');
         fetchProducts();
         setAddOpen(false);
+        setNewProduct({
+          name: '',
+          description: '',
+          price: '',
+          quantity: '',
+          category: '',
+          expiryDate: '',
+          sellerEmail: localStorage.getItem('email') || '',
+        });
+        setPhoto(null);
+        setPhotoError('');
       } else {
-        setPhotoError(msg || 'Failed to add product');
+        setPhotoError(responseData || 'Failed to add product');
       }
-    } catch (err) {
-      console.error('Error adding product:', err);
-      setPhotoError('Failed to add product. Please try again.');
+    } catch (error) {
+      console.error('Error adding product:', error);
+      console.error('Error response:', error.response);
+      let errorMessage = 'Failed to add product. Please try again.';
+      if (error.response) {
+        errorMessage = error.response.data || error.response.statusText || errorMessage;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      if (typeof errorMessage === 'string' && errorMessage.includes('::')) {
+        errorMessage = errorMessage.split('::')[1];
+      }
+      setPhotoError(errorMessage);
     }
   };
 

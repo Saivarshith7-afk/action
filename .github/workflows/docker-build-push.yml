@@ -61,7 +61,7 @@ jobs:
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
       - name: Extract metadata for frontend
         id: meta-frontend
@@ -85,10 +85,10 @@ jobs:
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           build-args: |
-            VITE_API_URL=${{ secrets.VITE_API_URL || 'http://localhost:8090' }}
+            VITE_API_URL=${{ secrets.VITE_API_URL || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
       - name: Image digest backend
         run: echo ${{ steps.meta-backend.outputs.digest }}

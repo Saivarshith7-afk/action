@@ -12,6 +12,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import UserNavbar from '../components/UserNavbar';
+import PaymentModal from '../components/PaymentModal';
 import { getBalance, addMoney, getUserTransactions } from '../api';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
@@ -22,6 +23,7 @@ const Wallet = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
   const [recentTransaction, setRecentTransaction] = useState(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const email = localStorage.getItem('email');
 
   useEffect(() => {
@@ -57,21 +59,44 @@ const Wallet = () => {
     }
   };
 
-  const handleAddMoney = async (e) => {
+  const handleAddMoneyClick = (e) => {
     e.preventDefault();
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
       setError('Please enter a valid amount');
       return;
     }
+    setError('');
+    setPaymentModalOpen(true);
+  };
 
+  const handlePaymentSuccess = async () => {
     try {
-      await addMoney(email, parseFloat(amount));
+      const amountToAdd = parseFloat(amount);
+      await addMoney(email, amountToAdd);
+      
+      // Record transaction (productId is required, use 0 for wallet transactions)
+      try {
+        const { recordTransaction } = await import('../api');
+        await recordTransaction({
+          buyerEmail: email,
+          productId: 0, // 0 indicates wallet transaction (no product)
+          amount: amountToAdd
+        });
+      } catch (txError) {
+        console.error('Error recording transaction:', txError);
+        // Don't fail the whole operation if transaction recording fails
+      }
+      
       setSuccess('Money added successfully!');
       setAmount('');
       fetchWalletData();
+      // Wait a bit for transaction to be saved, then fetch
+      setTimeout(() => {
+        fetchRecentTransaction();
+      }, 500);
     } catch (error) {
       console.error('Error adding money:', error);
-      setError('Failed to add money');
+      setError('Failed to add money. Please try again.');
     }
   };
 
@@ -128,7 +153,7 @@ const Wallet = () => {
                 <Typography variant="h3" color="primary" gutterBottom>
                   ${balance.toFixed(2)}
                 </Typography>
-                <form onSubmit={handleAddMoney}>
+                <form onSubmit={handleAddMoneyClick}>
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={8}>
                       <TextField
@@ -136,7 +161,10 @@ const Wallet = () => {
                         label="Amount to Add"
                         type="number"
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
+                        onChange={(e) => {
+                          setAmount(e.target.value);
+                          setError('');
+                        }}
                         inputProps={{ step: "0.01", min: "0" }}
                         required
                       />
@@ -165,12 +193,14 @@ const Wallet = () => {
                 </Typography>
                 {recentTransaction ? (
                   <>
-                    <Typography variant="body1">
-                      Amount: <b>${recentTransaction.amount}</b>
+                    <Typography variant="body1" sx={{ mb: 1 }}>
+                      Amount: <b>${typeof recentTransaction.amount === 'number' ? recentTransaction.amount.toFixed(2) : '0.00'}</b>
                     </Typography>
+                    {recentTransaction.transactionTime && (
                     <Typography variant="body2" color="text.secondary">
                       Date: {new Date(recentTransaction.transactionTime).toLocaleString()}
                     </Typography>
+                    )}
                   </>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
@@ -181,6 +211,13 @@ const Wallet = () => {
             </Card>
           </Grid>
         </Grid>
+
+        <PaymentModal
+          open={paymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          amount={amount}
+          onSuccess={handlePaymentSuccess}
+        />
       </Container>
     </>
   );

@@ -18,6 +18,8 @@ import {
 import Navbar from '../components/Navbar';
 import { getHighestBid, getBidsForProduct, placeBid, getProductById } from '../api';
 
+const API_BASE = import.meta.env?.VITE_API_URL || '';
+
 const Bidding = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
@@ -144,7 +146,7 @@ const Bidding = () => {
               <CardMedia
                 component="img"
                 height="400"
-                image={product.imageUrl || 'https://via.placeholder.com/400'}
+                image={product.photoUrl ? `${API_BASE}${product.photoUrl}` : 'https://via.placeholder.com/400'}
                 alt={product.name}
               />
               <CardContent>

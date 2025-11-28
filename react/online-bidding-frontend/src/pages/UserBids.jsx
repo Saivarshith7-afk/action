@@ -1,32 +1,30 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
   Grid,
   Card,
   CardContent,
+  CardMedia,
   Box,
   Alert,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
 } from '@mui/material';
 import UserNavbar from '../components/UserNavbar';
+import OrderModal from '../components/OrderModal';
 import { getBidsForProduct, getHighestBid, placeOrder, createDelivery } from '../api';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env?.VITE_API_URL || '';
 
 const UserBids = () => {
+  const navigate = useNavigate();
   const [userBids, setUserBids] = useState([]);
   const [highestBids, setHighestBids] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [deliveryAddress, setDeliveryAddress] = useState('');
 
   const userEmail = localStorage.getItem('email');
 
@@ -79,19 +77,19 @@ const UserBids = () => {
 
   const handleOrderClick = (product) => {
     setSelectedProduct(product);
-    setDeliveryAddress('');
+    setError('');
+    setSuccess('');
     setOrderModalOpen(true);
   };
 
-  const handleOrderSubmit = async (e) => {
-    e.preventDefault();
-    if (!deliveryAddress.trim()) {
-      setError('Please enter a delivery address');
-      return;
-    }
-
+  const handleOrderSuccess = async (addressData) => {
     try {
-      // First place the order
+      // Format address string
+      const addressString = addressData.addressLine2
+        ? `${addressData.addressLine1}, ${addressData.addressLine2}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`
+        : `${addressData.addressLine1}, ${addressData.city}, ${addressData.state} ${addressData.zipCode}`;
+
+      // Place the order
       const orderData = {
         buyerEmail: userEmail,
         productId: selectedProduct.id,
@@ -99,30 +97,51 @@ const UserBids = () => {
       };
 
       const orderResponse = await placeOrder(orderData);
-      if (!orderResponse.data.startsWith('200::')) {
-        setError(orderResponse.data.split('::')[1] || 'Failed to place order');
+      if (!orderResponse.data || !orderResponse.data.toString().includes('200')) {
+        setError(orderResponse.data?.split('::')[1] || 'Failed to place order');
         return;
       }
 
       // Extract order ID from response
-      const orderId = orderResponse.data.split('::')[1];
-
-      // Create delivery record
-      const deliveryData = {
-        orderId: parseInt(orderId),
-        deliveryStatus: 'Pending',
-        deliveryAddress: deliveryAddress
-      };
-
-      const deliveryResponse = await createDelivery(deliveryData);
-      if (deliveryResponse.data.startsWith('200::')) {
-        setSuccess('Order placed and delivery record created successfully!');
-        setOrderModalOpen(false);
-        fetchUserBids(); // Refresh the list
-      } else {
-        setError('Order placed but failed to create delivery record');
+      let orderId;
+      if (typeof orderResponse.data === 'string') {
+        if (orderResponse.data.includes('::')) {
+          orderId = orderResponse.data.split('::')[1];
+        } else if (orderResponse.data.includes('Order placed successfully')) {
+          // Try to get order ID from the response or fetch the latest order
+          const ordersResponse = await fetch(`${import.meta.env?.VITE_API_URL || ''}/orders/getbyuser`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userEmail })
+          });
+          const orders = await ordersResponse.json();
+          if (orders && orders.length > 0) {
+            orderId = orders[orders.length - 1].id;
+          }
+        }
       }
+
+      if (orderId) {
+        // Create delivery record
+        const deliveryData = {
+          orderId: parseInt(orderId),
+          deliveryStatus: 'Pending',
+          deliveryAddress: addressString
+        };
+
+        await createDelivery(deliveryData);
+      }
+
+      setSuccess('Order placed successfully!');
+      setOrderModalOpen(false);
+      fetchUserBids(); // Refresh the list
+      
+      // Redirect to My Orders page after a short delay
+      setTimeout(() => {
+        navigate('/user/orders');
+      }, 1500);
     } catch (err) {
+      console.error('Error placing order:', err);
       setError('Failed to place order. Please try again.');
     }
   };
@@ -140,15 +159,25 @@ const UserBids = () => {
         <Grid container spacing={3}>
           {userBids.map((bid) => (
             <Grid item xs={12} sm={6} md={4} key={bid.id}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-6px)', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' } }}>
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={bid.product.photoUrl ? `${API_BASE}${bid.product.photoUrl}` : 'https://via.placeholder.com/300x200'}
+                  alt={bid.product.name}
+                  sx={{ objectFit: 'cover' }}
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
                     {bid.product.name}
                   </Typography>
-                  <Typography color="textSecondary" gutterBottom>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Category: {bid.product.category}
+                  </Typography>
+                  <Typography variant="body1" color="primary" sx={{ mb: 1, fontWeight: 'bold' }}>
                     Your Bid: ${bid.bidAmount.toFixed(2)}
                   </Typography>
-                  <Typography color="textSecondary" gutterBottom>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Current Highest Bid: ${highestBids[bid.product.id]?.bidAmount.toFixed(2) || '0.00'}
                   </Typography>
                   {highestBids[bid.product.id]?.buyerEmail === userEmail && (
@@ -168,35 +197,13 @@ const UserBids = () => {
           ))}
         </Grid>
 
-        <Dialog open={orderModalOpen} onClose={() => setOrderModalOpen(false)} maxWidth="xs" fullWidth>
-          <DialogTitle>Place Order</DialogTitle>
-          <form onSubmit={handleOrderSubmit}>
-            <DialogContent>
-              <Typography gutterBottom>
-                Product: {selectedProduct?.name}
-              </Typography>
-              <Typography gutterBottom color="primary">
-                Amount: ${selectedProduct && highestBids[selectedProduct.id]?.bidAmount.toFixed(2)}
-              </Typography>
-              <TextField
-                fullWidth
-                label="Delivery Address"
-                value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-                required
-                multiline
-                rows={3}
-                sx={{ mt: 2 }}
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setOrderModalOpen(false)}>Cancel</Button>
-              <Button type="submit" variant="contained" color="primary">
-                Place Order
-              </Button>
-            </DialogActions>
-          </form>
-        </Dialog>
+        <OrderModal
+          open={orderModalOpen}
+          onClose={() => setOrderModalOpen(false)}
+          product={selectedProduct}
+          orderAmount={selectedProduct ? highestBids[selectedProduct.id]?.bidAmount : 0}
+          onSuccess={handleOrderSuccess}
+        />
       </Container>
     </>
   );

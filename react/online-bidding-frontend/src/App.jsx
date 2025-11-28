@@ -1,6 +1,7 @@
 import { RouterProvider } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material';
 import router from './router/Router';
+import ChatWidget from './components/ChatWidget';
 import './index.css';
 
 const theme = createTheme({
@@ -21,6 +22,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <RouterProvider router={router} />
+      <ChatWidget />
     </ThemeProvider>
   );
 }

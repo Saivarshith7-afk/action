@@ -40,10 +40,22 @@ const SignupModal = ({ open, onClose, onSignupSuccess }) => {
         onSignupSuccess();
         onClose();
       } else {
-        setError(data.split('::')[1] || 'Signup failed');
+        // Extract error message from response (format: "CODE::MESSAGE")
+        const errorMessage = data.includes('::') ? data.split('::')[1] : data;
+        setError(errorMessage || 'Signup failed');
       }
     } catch (error) {
-      setError('Signup failed. Please try again.');
+      console.error('Signup error:', error);
+      // Handle network errors
+      if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || !error.response) {
+        setError(`Cannot connect to server. Please check if backend is running.`);
+      } else {
+        // Try to extract error message from response
+        const errorMessage = error.response?.data || error.message || 'Signup failed. Please try again.';
+        // Remove status code prefix if present
+        const cleanMessage = errorMessage.includes('::') ? errorMessage.split('::')[1] : errorMessage;
+        setError(cleanMessage);
+      }
     }
   };
 

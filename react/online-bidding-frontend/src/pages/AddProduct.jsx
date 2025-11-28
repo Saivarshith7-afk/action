@@ -76,35 +76,87 @@ const AddProduct = () => {
       }
 
       // Create FormData to handle file upload
+      // Backend expects 'product' as JSON string and 'photo' as file
       const productFormData = new FormData();
-      productFormData.append('name', formData.name);
-      productFormData.append('description', formData.description);
-      productFormData.append('price', parseFloat(formData.price));
-      productFormData.append('category', formData.category);
-      productFormData.append('sellerEmail', formData.sellerEmail);
-      productFormData.append('image', selectedImage);
-
-      await addProduct(productFormData);
-      setSuccess('Product added successfully!');
-      setFormData({
-        name: '',
-        description: '',
-        price: '',
-        category: '',
-        imageUrl: '',
-        sellerEmail: localStorage.getItem('email') || '',
+      const productJson = JSON.stringify({
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        sellerEmail: formData.sellerEmail,
       });
-      setSelectedImage(null);
-      setImagePreview('');
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      productFormData.append('product', new Blob([productJson], { type: 'application/json' }));
+      productFormData.append('photo', selectedImage);
+
+      const response = await addProduct(productFormData);
+      console.log('Product addition response:', response);
+      const responseData = response.data;
+      
+      // Backend returns plain string (success message or error)
+      // Check if it's a success message
+      if (typeof responseData === 'string') {
+        // If it contains "Successfully" or "Added" it's likely a success
+        if (responseData.toLowerCase().includes('successfully') || 
+            responseData.toLowerCase().includes('added') ||
+            response.status === 200) {
+          setSuccess('Product added successfully!');
+          setFormData({
+            name: '',
+            description: '',
+            price: '',
+            category: '',
+            imageUrl: '',
+            sellerEmail: localStorage.getItem('email') || '',
+          });
+          setSelectedImage(null);
+          setImagePreview('');
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+          setTimeout(() => {
+            navigate('/admin/products');
+          }, 2000);
+        } else {
+          // It's an error message
+          setError(responseData);
+        }
+      } else if (response.status === 200) {
+        // Success response
+        setSuccess('Product added successfully!');
+        setFormData({
+          name: '',
+          description: '',
+          price: '',
+          category: '',
+          imageUrl: '',
+          sellerEmail: localStorage.getItem('email') || '',
+        });
+        setSelectedImage(null);
+        setImagePreview('');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        setTimeout(() => {
+          navigate('/admin/products');
+        }, 2000);
+      } else {
+        setError(responseData || 'Failed to add product');
       }
-      setTimeout(() => {
-        navigate('/admin/products');
-      }, 2000);
     } catch (error) {
       console.error('Error adding product:', error);
-      setError('Failed to add product. Please try again.');
+      console.error('Error response:', error.response);
+      // Extract error message from response
+      let errorMessage = 'Failed to add product. Please try again.';
+      if (error.response) {
+        errorMessage = error.response.data || error.response.statusText || errorMessage;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      // Clean up error message if it contains status codes
+      if (typeof errorMessage === 'string' && errorMessage.includes('::')) {
+        errorMessage = errorMessage.split('::')[1];
+      }
+      setError(errorMessage);
     }
   };
 

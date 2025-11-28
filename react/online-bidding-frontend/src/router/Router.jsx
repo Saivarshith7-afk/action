@@ -33,7 +33,8 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   return children;
 };
 
-const router = createBrowserRouter([
+const router = createBrowserRouter(
+  [
   {
     path: '/',
     element: <Home />,
@@ -174,6 +175,11 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-]);
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  },
+});
 
 export default router; 

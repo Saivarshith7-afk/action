@@ -20,7 +20,7 @@ import UserNavbar from '../components/UserNavbar';
 import { getAllProducts, placeBid, getHighestBid } from '../api';
 import GavelIcon from '@mui/icons-material/Gavel';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env?.VITE_API_URL || '';
 const MIN_BID_INCREMENT = 1.00; // Minimum bid increment in dollars
 
 const UserDashboard = () => {

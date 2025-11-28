@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 import { getFullname } from '../api';
+import logo from '../assets/logo.jpg';
 import '../CSS/navbar.css';
 import LoginModal from './LoginModal';
 import SignupModal from './SignupModal';
@@ -55,9 +56,12 @@ const Navbar = () => {
   return (
     <AppBar position="static" className="navbar">
       <Toolbar>
-        <Typography variant="h6" component={Link} to="/" className="logo">
-          Online Bidding
-        </Typography>
+        <Box component={Link} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+          <img src={logo} alt="Logo" style={{ height: '40px', marginRight: '10px' }} />
+          <Typography variant="h6" className="logo">
+            Online Bidding
+          </Typography>
+        </Box>
         
         <Box className="nav-links">
           <Button color="inherit" component={Link} to="/about">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppBar, Toolbar, Typography, Button, Box, IconButton, Tooltip } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import ListAltIcon from '@mui/icons-material/ListAlt';
@@ -8,10 +8,36 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import GavelIcon from '@mui/icons-material/Gavel';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { getFullname } from '../api';
+import logo from '../assets/logo.jpg';
 import '../CSS/navbar.css';
 
 const AdminNavbar = () => {
   const navigate = useNavigate();
+  const [adminName, setAdminName] = useState('Admin Panel');
+
+  useEffect(() => {
+    const fetchAdminName = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await getFullname(token);
+          const name = response.data;
+          if (name && !name.includes('::') && !name.includes('401')) {
+            setAdminName(name);
+          } else if (name && name.includes('::')) {
+            const actualName = name.split('::')[1];
+            if (actualName && actualName !== 'Token Expired!') {
+              setAdminName(actualName);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching admin name:', error);
+        }
+      }
+    };
+    fetchAdminName();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -23,9 +49,12 @@ const AdminNavbar = () => {
   return (
     <AppBar position="static" className="navbar">
       <Toolbar>
-        <Typography variant="h6" component={Link} to="/admin-dashboard" className="logo">
-          Admin Panel
-        </Typography>
+        <Box component={Link} to="/admin-dashboard" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit', mr: 2 }}>
+          <img src={logo} alt="Logo" style={{ height: '40px', marginRight: '10px' }} />
+          <Typography variant="h6" className="logo">
+            {adminName}
+          </Typography>
+        </Box>
         <Box className="nav-links">
           <Tooltip title="All Products">
             <IconButton color="inherit" component={Link} to="/products">
