@@ -8,7 +8,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/delivery")
-@CrossOrigin(origins = "http://localhost:5173")
 public class DeliveryController {
 
     @Autowired

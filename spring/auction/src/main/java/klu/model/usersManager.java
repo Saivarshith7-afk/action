@@ -16,11 +16,31 @@ public class usersManager {
 
     // Register a user
     public String addUser(User user) {
-        if (UR.validateEmail(user.getEmail()) > 0) {
-            return "404::Email already exists";
+        try {
+            // Validate required fields
+            if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+                return "400::Email is required";
+            }
+            if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+                return "400::Password is required";
+            }
+            if (user.getFullname() == null || user.getFullname().trim().isEmpty()) {
+                return "400::Full name is required";
+            }
+            
+            // Check if email already exists
+            if (UR.validateEmail(user.getEmail()) > 0) {
+                return "404::Email already exists";
+            }
+            
+            // Save user
+            UR.save(user);
+            return "200::User registration successful";
+        } catch (Exception e) {
+            System.err.println("Error registering user: " + e.getMessage());
+            e.printStackTrace();
+            return "500::Error registering user: " + e.getMessage();
         }
-        UR.save(user);
-        return "200::User registration successful";
     }
 
     // Login user (and return token)
@@ -49,5 +69,30 @@ public class usersManager {
         }
 
         return user.getFullname();
+    }
+
+    // Reset password (forgot password) - requires OTP verification
+    public String resetPassword(String email, String newPassword) {
+        try {
+            if (email == null || email.trim().isEmpty()) {
+                return "400::Email is required";
+            }
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                return "400::Password is required";
+            }
+
+            User user = UR.findById(email).orElse(null);
+            if (user == null) {
+                return "404::User not found with this email";
+            }
+
+            user.setPassword(newPassword);
+            UR.save(user);
+            return "200::Password reset successfully";
+        } catch (Exception e) {
+            System.err.println("Error resetting password: " + e.getMessage());
+            e.printStackTrace();
+            return "500::Error resetting password: " + e.getMessage();
+        }
     }
 }

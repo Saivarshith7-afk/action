@@ -12,7 +12,6 @@ import klu.model.OrderManager;
 
 @RestController
 @RequestMapping("/orders")
-@CrossOrigin(origins = "http://localhost:5173")
 public class OrderController {
 
     @Autowired
@@ -31,6 +30,15 @@ public class OrderController {
     @GetMapping("/all")
     public List<Order> getAllOrders() {
         return OM.getAllOrders();
+    }
+
+    @PostMapping("/cancel")
+    public String cancelOrder(@RequestBody Map<String, Integer> data) {
+        Integer orderId = data.get("orderId");
+        if (orderId == null) {
+            return "400::Order ID is required";
+        }
+        return OM.cancelOrder(orderId);
     }
 }
 

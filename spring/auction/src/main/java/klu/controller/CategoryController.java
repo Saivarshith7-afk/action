@@ -8,7 +8,6 @@ import klu.model.CategoryManager;
 
 @RestController
 @RequestMapping("/categories")
-@CrossOrigin(origins = "http://localhost:5173")
 public class CategoryController {
 
     @Autowired

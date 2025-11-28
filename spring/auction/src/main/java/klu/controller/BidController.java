@@ -10,7 +10,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/bid")
-@CrossOrigin(origins = "http://localhost:5173")
 public class BidController {
 
     @Autowired

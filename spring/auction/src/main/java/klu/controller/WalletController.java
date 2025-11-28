@@ -7,7 +7,6 @@ import klu.model.WalletManager;
 
 @RestController
 @RequestMapping("/wallet")
-@CrossOrigin(origins = "http://localhost:5173")
 public class WalletController {
 
     @Autowired

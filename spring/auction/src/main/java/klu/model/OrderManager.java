@@ -30,4 +30,19 @@ public class OrderManager {
     public List<Order> getAllOrders() {
         return OR.findAll();
     }
+
+    public String cancelOrder(int orderId) {
+        Order order = OR.findById(orderId).orElse(null);
+        if (order == null) {
+            return "404::Order Not Found";
+        }
+        
+        // Refund the amount to user's wallet
+        WM.creditBalance(order.getBuyerEmail(), order.getAmount());
+        
+        // Delete the order
+        OR.deleteById(orderId);
+        
+        return "200::Order cancelled and refund processed";
+    }
 }
