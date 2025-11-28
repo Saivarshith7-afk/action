@@ -1,0 +1,146 @@
+---
+- name: Deploy Online Auction Application to Kubernetes
+  hosts: kubernetes
+  become: yes
+  vars:
+    dockerhub_username: "YOUR_DOCKERHUB_USERNAME"
+    dockerhub_backend_image: "{{ dockerhub_username }}/online-auction-backend:latest"
+    dockerhub_frontend_image: "{{ dockerhub_username }}/online-auction-frontend:latest"
+    k8s_namespace: "online-auction"
+    k8s_manifest_dir: "/opt/k8s-manifests"
+
+  tasks:
+    - name: Ensure required packages are installed
+      package:
+        name:
+          - kubectl
+          - docker.io
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Check if kubectl is installed
+      command: which kubectl
+      register: kubectl_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if kubectl is not installed
+      fail:
+        msg: "kubectl is not installed. Please install kubectl first."
+      when: kubectl_check.rc != 0
+
+    - name: Create directory for Kubernetes manifests
+      file:
+        path: "{{ k8s_manifest_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy Kubernetes manifests to target server
+      copy:
+        src: "{{ item }}"
+        dest: "{{ k8s_manifest_dir }}/"
+      loop:
+        - "namespace.yaml"
+        - "configmap-backend.yaml"
+        - "secret-backend.yaml"
+        - "secret-mysql.yaml"
+        - "mysql-deployment.yaml"
+        - "backend-deployment.yaml"
+        - "frontend-deployment.yaml"
+        - "ingress.yaml"
+      delegate_to: localhost
+      become: no
+
+    - name: Update image names in backend deployment
+      replace:
+        path: "{{ k8s_manifest_dir }}/backend-deployment.yaml"
+        regexp: 'YOUR_DOCKERHUB_USERNAME'
+        replace: "{{ dockerhub_username }}"
+
+    - name: Update image names in frontend deployment
+      replace:
+        path: "{{ k8s_manifest_dir }}/frontend-deployment.yaml"
+        regexp: 'YOUR_DOCKERHUB_USERNAME'
+        replace: "{{ dockerhub_username }}"
+
+    - name: Check if namespace exists
+      command: kubectl get namespace {{ k8s_namespace }}
+      register: namespace_check
+      changed_when: false
+      failed_when: false
+
+    - name: Create namespace if it doesn't exist
+      command: kubectl create namespace {{ k8s_namespace }}
+      when: namespace_check.rc != 0
+
+    - name: Apply Kubernetes manifests
+      command: kubectl apply -f "{{ k8s_manifest_dir }}/{{ item }}"
+      args:
+        chdir: "{{ k8s_manifest_dir }}"
+      loop:
+        - "namespace.yaml"
+        - "configmap-backend.yaml"
+        - "secret-backend.yaml"
+        - "secret-mysql.yaml"
+        - "mysql-deployment.yaml"
+        - "backend-deployment.yaml"
+        - "frontend-deployment.yaml"
+        - "ingress.yaml"
+      register: apply_result
+      failed_when: false
+
+    - name: Display apply results
+      debug:
+        var: apply_result
+
+    - name: Wait for MySQL to be ready
+      k8s_info:
+        kind: Pod
+        namespace: "{{ k8s_namespace }}"
+        label_selectors:
+          - app=mysql
+      register: mysql_pods
+      until: mysql_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length > 0
+      retries: 30
+      delay: 10
+
+    - name: Wait for backend pods to be ready
+      k8s_info:
+        kind: Pod
+        namespace: "{{ k8s_namespace }}"
+        label_selectors:
+          - app=backend
+      register: backend_pods
+      until: backend_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length > 0
+      retries: 30
+      delay: 10
+
+    - name: Wait for frontend pods to be ready
+      k8s_info:
+        kind: Pod
+        namespace: "{{ k8s_namespace }}"
+        label_selectors:
+          - app=frontend
+      register: frontend_pods
+      until: frontend_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length > 0
+      retries: 30
+      delay: 10
+
+    - name: Get service information
+      command: kubectl get svc -n {{ k8s_namespace }}
+      register: service_info
+      changed_when: false
+
+    - name: Display service information
+      debug:
+        var: service_info.stdout_lines
+
+    - name: Get pod status
+      command: kubectl get pods -n {{ k8s_namespace }}
+      register: pod_status
+      changed_when: false
+
+    - name: Display pod status
+      debug:
+        var: pod_status.stdout_lines
+

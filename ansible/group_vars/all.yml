@@ -1,0 +1,31 @@
+# Default variables for all hosts
+dockerhub_username: "YOUR_DOCKERHUB_USERNAME"
+k8s_namespace: "online-auction"
+
+# Database configuration
+mysql_root_password: "085279"
+mysql_database: "online"
+mysql_user: "auction_user"
+mysql_password: "085279"
+
+# Backend configuration
+backend_replicas: 2
+backend_memory_request: "512Mi"
+backend_memory_limit: "1Gi"
+backend_cpu_request: "250m"
+backend_cpu_limit: "500m"
+
+# Frontend configuration
+frontend_replicas: 2
+frontend_memory_request: "128Mi"
+frontend_memory_limit: "256Mi"
+frontend_cpu_request: "100m"
+frontend_cpu_limit: "200m"
+
+# MySQL configuration
+mysql_memory_request: "512Mi"
+mysql_memory_limit: "1Gi"
+mysql_cpu_request: "250m"
+mysql_cpu_limit: "500m"
+mysql_storage_size: "10Gi"
+

@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: online-auction
+
+resources:
+  - namespace.yaml
+  - configmap-backend.yaml
+  - secret-backend.yaml
+  - secret-mysql.yaml
+  - mysql-deployment.yaml
+  - backend-deployment.yaml
+  - frontend-deployment.yaml
+  - ingress.yaml
+
+images:
+  - name: varshith4/online-auction-backend
+    newName: varshith4/online-auction-backend
+    newTag: latest
+  - name: varshith4/online-auction-frontend
+    newName: varshith4/online-auction-frontend
+    newTag: latest
+

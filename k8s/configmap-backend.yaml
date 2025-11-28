@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: online-auction
+data:
+  SPRING_DATASOURCE_URL: "jdbc:mysql://mysql-service:3306/online?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+  SPRING_DATASOURCE_USERNAME: "root"
+  SERVER_PORT: "8080"
+  JAVA_OPTS: "-Xms256m -Xmx512m"
+
